@@ -225,10 +225,14 @@ def create_tv_screen(base_x=0.0, base_y=0.0,
 # Frame rendering
 # ---------------------------------------------------------------------------
 
-def _build_color_cache(color_map, step=8):
+def _build_color_cache(color_map, step=16):
     '''
     Pre-compute a lookup table mapping (r//step, g//step, b//step) → palette index.
     This reduces calls to FindClosestMatch during frame updates.
+
+    step=16 produces 16³ = 4096 entries (a reasonable balance between accuracy
+    and initialisation time).  Any colour not found in the cache is resolved
+    lazily via FindClosestMatch and stored for future use.
     '''
     cache = {}
     for r8 in range(0, 256, step):
@@ -283,7 +287,7 @@ def update_pixels_from_frame(pixel_refs, frame_rgb, color_map=None, _cache_holde
         col = idx % cols
         if row >= rows or col >= cols:
             continue
-        r, g, b = int(frame_rgb[row, col, 0]), int(frame_rgb[row, col, 1]), int(frame_rgb[row, col, 2])
+        r, g, b = frame_rgb[row, col].astype(int)
         key = (r // step, g // step, b // step)
         color_idx = cache.get(key)
         if color_idx is None:
@@ -593,7 +597,7 @@ class PixelTVPlayer:
         fps = max(1, self._fps_slider.value())
         self._frame_timer = QTimer()
         self._frame_timer.timeout.connect(self._next_frame)
-        self._frame_timer.start(1000 // fps)
+        self._frame_timer.start(int(1000.0 / fps))
 
     def _on_stop(self):
         self._is_playing = False
